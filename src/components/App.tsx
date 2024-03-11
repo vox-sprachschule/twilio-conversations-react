@@ -8,7 +8,6 @@ import { Box, Spinner } from "@twilio-paste/core";
 import Login from "./login/login";
 import AppContainer from "./AppContainer";
 import { actionCreators, AppState } from "../store";
-import { getToken } from "../api";
 
 function App(): ReactElement {
   const [loading, setLoading] = useState(true);
@@ -17,22 +16,32 @@ function App(): ReactElement {
   const token = useSelector((state: AppState) => state.token);
 
   const username = localStorage.getItem("username") ?? "";
-  const password = localStorage.getItem("password") ?? "";
 
   useEffect(() => {
-    if (username.length > 0 && password.length > 0) {
-      getToken(username, password)
-        .then((token) => {
-          login(token);
-        })
-        .catch(() => {
-          localStorage.setItem("username", "");
-          localStorage.setItem("password", "");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
+    window.addEventListener(
+      "message",
+      function (event) {
+        console.log(event);
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        const origin = event.origin || event.originalEvent.origin; // For Chrome, the origin property is in the event.originalEvent object.
+        console.log("ORIGIN", origin);
+        if (
+          origin !== "http://localhost" &&
+          origin !== "https://bo.vox-sprachschule.ch"
+        ) {
+          console.error("Wrong origin " + origin);
+          return;
+        }
+
+        if (typeof event.data == "object" && event.data.call === "setJwt") {
+          setToken(event.data.jwt);
+          localStorage.setItem("username", event.data.identity);
+        }
+      },
+      false
+    );
   }, []);
 
   const setToken = (token: string) => {
@@ -40,7 +49,7 @@ function App(): ReactElement {
     setLoading(false);
   };
 
-  if ((!token && !loading) || !username || !password) {
+  if ((!token && !loading) || !username) {
     return <Login setToken={setToken} />;
   }
 
