@@ -231,13 +231,10 @@ const AppContainer: React.FC = () => {
       );
     });
     client.on("conversationUpdated", async ({ conversation }) => {
-      console.log('conversationUpdated')
-      /*
       await handlePromiseRejection(
         () => upsertConversation(conversation),
         addNotifications
       );
-       */
     });
 
     client.on("messageUpdated", async ({ message }) => {
