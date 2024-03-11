@@ -13,7 +13,6 @@ import { Box } from "@twilio-paste/core";
 
 import { actionCreators, AppState } from "../store";
 import ConversationContainer from "./conversations/ConversationContainer";
-import ConversationsContainer from "./conversations/ConversationsContainer";
 import {
   AddMessagesType,
   SetParticipantsType,
@@ -109,6 +108,8 @@ const AppContainer: React.FC = () => {
     }
     callback(sid, identity || friendlyName || "");
   };
+
+
   useEffect(() => {
     initFcmServiceWorker().catch(() => {
       console.error(
@@ -116,9 +117,42 @@ const AppContainer: React.FC = () => {
       );
     });
   }, []);
+
   useEffect(() => {
     const client = new Client(token);
     setClient(client);
+
+    window.addEventListener(
+      "message",
+      async function (event) {
+        console.log(event);
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        const origin = event.origin || event.originalEvent.origin; // For Chrome, the origin property is in the event.originalEvent object.
+        console.log("ORIGIN", origin);
+        if (origin !== "http://localhost") {
+          return;
+        }
+
+        if (typeof event.data == "object" && event.data.call === "upsertConvo") {
+          setTimeout(async () => {
+            const convo = await client!.getConversationBySid(event.data.conversation_sid)
+            if (convo) {
+              await handlePromiseRejection(
+                () => upsertConversation(convo),
+                addNotifications
+              );
+
+              updateCurrentConversation(event.data.conversation_sid)
+            } else {
+              alert('Conversation SID: ' + event.data.conversation_sid + ' not found')
+            }
+          }, 2000)
+        }
+      },
+      false
+    );
 
     const fcmInit = async () => {
       await subscribeFcmNotifications(client);
@@ -197,10 +231,13 @@ const AppContainer: React.FC = () => {
       );
     });
     client.on("conversationUpdated", async ({ conversation }) => {
+      console.log('conversationUpdated')
+      /*
       await handlePromiseRejection(
         () => upsertConversation(conversation),
         addNotifications
       );
+       */
     });
 
     client.on("messageUpdated", async ({ message }) => {
@@ -314,7 +351,6 @@ const AppContainer: React.FC = () => {
         />
       </Box>
       <Box style={stylesheet.appContainer(alertsExist)}>
-        <ConversationsContainer client={client} />
         <Box style={stylesheet.messagesWrapper}>
           <ConversationContainer
             conversation={openedConversation}
