@@ -131,7 +131,11 @@ const AppContainer: React.FC = () => {
         // @ts-ignore
         const origin = event.origin || event.originalEvent.origin; // For Chrome, the origin property is in the event.originalEvent object.
         console.log("ORIGIN", origin);
-        if (origin !== "http://localhost") {
+        if (
+          origin !== "http://localhost" &&
+          origin !== "https://bo.vox-sprachschule.ch"
+        ) {
+          console.error("Wrong origin " + origin);
           return;
         }
 
