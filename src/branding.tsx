@@ -3,7 +3,7 @@ import React from "react";
 import { IconSize, TextColor } from "@twilio-paste/style-props";
 
 export const LOGO_TITLE = "VOX-Sprachschule";
-export const LOGO_SUB_TITLE = "WhatsApp";
+export const LOGO_SUB_TITLE = "Chat";
 export const APP_TITLE = "Whatsapp";
 
 interface LogoTwilioIconProps {
