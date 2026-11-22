@@ -44,7 +44,7 @@ const MessageInputField: React.FC<SendMessageProps> = (
     setMessage("");
     setFiles([]);
     setFilesInputKey(Date.now().toString());
-  }, [props.convo]);
+  }, [props.convo.sid]);
 
   useEffect(() => {
     if (!files.length) {
