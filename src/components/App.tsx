@@ -8,6 +8,7 @@ import { Box, Spinner } from "@twilio-paste/core";
 import Login from "./login/login";
 import AppContainer from "./AppContainer";
 import { actionCreators, AppState } from "../store";
+import { isParentOrigin, setParentOrigin } from "../parent-page";
 
 function App(): ReactElement {
   const [loading, setLoading] = useState(true);
@@ -27,15 +28,14 @@ function App(): ReactElement {
         // @ts-ignore
         const origin = event.origin || event.originalEvent.origin; // For Chrome, the origin property is in the event.originalEvent object.
         console.log("ORIGIN", origin);
-        if (
-          origin !== "http://localhost" &&
-          origin !== "https://bo.vox-sprachschule.ch"
-        ) {
+        if (!isParentOrigin(origin)) {
           console.error("Wrong origin " + origin);
           return;
         }
 
+        // The back office sends one when the iframe loads and a fresh one every 20 minutes after that.
         if (typeof event.data == "object" && event.data.call === "setJwt") {
+          setParentOrigin(origin);
           setToken(event.data.jwt);
           localStorage.setItem("username", event.data.identity);
         }

@@ -22,8 +22,12 @@ import { getToken } from "../api";
 import useAppAlert from "../hooks/useAppAlerts";
 import Notifications from "./Notifications";
 import stylesheet from "../styles";
-import { handlePromiseRejection } from "../helpers";
+import {
+  handlePromiseRejection,
+  unexpectedErrorNotification,
+} from "../helpers";
 import AppHeader from "./AppHeader";
+import { isParentOrigin, requestTokenFromParent } from "../parent-page";
 
 import {
   initFcmServiceWorker,
@@ -60,7 +64,6 @@ const AppContainer: React.FC = () => {
   /* eslint-disable */
   const [connectionState, setConnectionState] = useState<ConnectionState>();
   const [client, setClient] = useState<Client>();
-  const [clientIteration, setClientIteration] = useState(0);
   const token = useSelector((state: AppState) => state.token);
   const conversations = useSelector((state: AppState) => state.convos);
   const sid = useSelector((state: AppState) => state.sid);
@@ -131,10 +134,7 @@ const AppContainer: React.FC = () => {
         // @ts-ignore
         const origin = event.origin || event.originalEvent.origin; // For Chrome, the origin property is in the event.originalEvent object.
         console.log("ORIGIN", origin);
-        if (
-          origin !== "http://localhost" &&
-          origin !== "https://bo.vox-sprachschule.ch"
-        ) {
+        if (!isParentOrigin(origin)) {
           console.error("Wrong origin " + origin);
           return;
         }
@@ -269,21 +269,19 @@ const AppContainer: React.FC = () => {
       }
     });
 
-    client.on("tokenAboutToExpire", async () => {
-      if (username && password) {
-        const token = await getToken(username, password);
-        await client.updateToken(token);
-        login(token);
+    // Only fetches the token: the effect below hands it to the client, which also reconnects with it after expiry.
+    const refreshToken = async () => {
+      // The back office answers with setJwt, which App turns into login(token).
+      if (requestTokenFromParent()) {
+        return;
       }
-    });
 
-    client.on("tokenExpired", async () => {
       if (username && password) {
-        const token = await getToken(username, password);
-        login(token);
-        setClientIteration((x) => x + 1);
+        login(await getToken(username, password));
       }
-    });
+    };
+    client.on("tokenAboutToExpire", refreshToken);
+    client.on("tokenExpired", refreshToken);
 
     client.on("connectionStateChanged", (state) => {
       setConnectionState(state);
@@ -294,7 +292,19 @@ const AppContainer: React.FC = () => {
     return () => {
       client?.removeAllListeners();
     };
-  }, [clientIteration]);
+  }, []);
+
+  // A token that came after the client was created: the back office sends a fresh one every 20 minutes, and
+  // refreshToken fetches one when the client reports its token expiring. A token the client already has is a no-op.
+  useEffect(() => {
+    if (!client || !token) {
+      return;
+    }
+
+    client
+      .updateToken(token)
+      .catch((e) => unexpectedErrorNotification(e.message, addNotifications));
+  }, [client, token]);
 
   useEffect(() => {
     const abortController = new AbortController();
