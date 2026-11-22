@@ -27,9 +27,13 @@ import {
   unexpectedErrorNotification,
 } from "../../helpers";
 import { NotificationsType } from "../../store/reducers/notificationsReducer";
-import { ReactionsType } from "../../types";
+import { MenuElement, ReactionsType } from "../../types";
 
 const today = new Date().toDateString();
+
+// Edit and Delete don't work for WhatsApp conversations
+const withoutEditAndDelete = (elements: MenuElement[]) =>
+  elements.filter(({ id }) => id !== "edit" && id !== "delete");
 
 interface MessageItemProps {
   message: ReduxMessage;
@@ -141,7 +145,7 @@ const MessageItem: React.FC<MessageItemProps> = (props: MessageItemProps) => {
       />
       {isOutbound && (
         <MenuMessageButton
-          menuElements={[
+          menuElements={withoutEditAndDelete([
             {
               id: "reactions",
               label: "",
@@ -178,7 +182,7 @@ const MessageItem: React.FC<MessageItemProps> = (props: MessageItemProps) => {
                 await handleDeleteMessage(message);
               },
             },
-          ]}
+          ])}
         />
       )}
     </ChatMessageMetaItem>,
