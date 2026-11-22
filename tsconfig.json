@@ -18,5 +18,8 @@
     "downlevelIteration": true,
     "useUnknownInCatchVariables": false
   },
+  "ts-node": {
+    "esm": true
+  },
   "include": ["src"]
 }
