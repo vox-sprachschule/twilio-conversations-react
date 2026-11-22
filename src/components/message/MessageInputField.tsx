@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { bindActionCreators } from "redux";
 
@@ -33,6 +33,12 @@ const MessageInputField: React.FC<SendMessageProps> = (
   const [files, setFiles] = useState<File[]>([]);
   // needed to clear input type=file
   const [filesInputKey, setFilesInputKey] = useState<string>("input-key");
+  const [isSending, setIsSending] = useState(false);
+  // Blocks a second send (Enter pressed twice) before the re-render with isSending.
+  const isSendingRef = useRef(false);
+  // The conversation shown now, read after the send resolves.
+  const convoSidRef = useRef(props.convo.sid);
+  convoSidRef.current = props.convo.sid;
 
   const theme = useTheme();
   const typingInfo = getTypingMessage(props.typingData);
@@ -97,7 +103,7 @@ const MessageInputField: React.FC<SendMessageProps> = (
   };
 
   const onMessageSend = async () => {
-    if (message.length == 0 && files.length == 0) {
+    if (isSendingRef.current || (message.length == 0 && files.length == 0)) {
       return;
     }
 
@@ -136,9 +142,30 @@ const MessageInputField: React.FC<SendMessageProps> = (
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     // upsertMessages(convo.sid, [newMessage]);
-    setMessage("");
-    setFiles([]);
-    const messageIndex = await newMessageBuilder.build().send();
+
+    // The text and files stay in the input until the message is sent, so a failed send (e.g. the connection is
+    // down) does not lose them and the manager can press Send again.
+    isSendingRef.current = true;
+    setIsSending(true);
+    let messageIndex: number | null;
+    try {
+      messageIndex = await newMessageBuilder.build().send();
+    } catch (e) {
+      unexpectedErrorNotification(
+        `Message not sent: ${e.message}`,
+        addNotifications
+      );
+      return;
+    } finally {
+      isSendingRef.current = false;
+      setIsSending(false);
+    }
+
+    // Another conversation may have been opened while sending: its draft is not the sent message.
+    if (convoSidRef.current === convo.sid) {
+      setMessage("");
+      setFiles([]);
+    }
 
     try {
       await sdkConvo.advanceLastReadMessageIndex(messageIndex ?? 0);
@@ -227,7 +254,11 @@ const MessageInputField: React.FC<SendMessageProps> = (
           alignItems="start"
         >
           {message || files.length ? (
-            <SendMessageButton message={message} onClick={onMessageSend} />
+            <SendMessageButton
+              message={message}
+              disabled={isSending}
+              onClick={onMessageSend}
+            />
           ) : null}
         </Box>
       </Box>
